@@ -505,16 +505,15 @@ class PyTorchMegatronLM_CE(PyTorchMegatronLM, ContainerEngineMixin):
     valid_systems = ['+nvgpu +ce']
     valid_prog_environs = ['builtin']
     maintainers = ['VCUE', 'SSA']
-    container_image = 'docker://jfrog.svc.cscs.ch#reframe-oci/pytorch:25.01-py3_nvrtc-12.9'
+    alps_extended_image = True
+    container_image = (
+        'jfrog.svc.cscs.ch/docker-group-csstaff/alps-images/'
+        'ngc-pytorch:26.02-py3-alps6'
+    )
 
     @run_after('setup')
     def set_container_config(self):
-        self.container_env_table = {
-            'annotations.com.hooks': {
-                'aws_ofi_nccl.enabled': 'true',
-                'aws_ofi_nccl.variant': 'cuda12',
-            },
-        }
+        self.env_vars['SLURM_NETWORK'] = 'disable_rdzv_get'
 
     @run_after('setup')
     def set_container_mounts(self):

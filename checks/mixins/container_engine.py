@@ -48,6 +48,16 @@ class ContainerEngineMixin(rfm.RegressionTestPlugin):
     #: :default: ``{}``
     container_env_table = variable(typ.Dict[str, typ.Dict[str, str]], value={})
 
+    #: Whether the container image is an Alps Extended Image.
+    #:
+    #: When ``True``, the EDF is generated with the settings recommended by
+    #: docs.cscs.ch for Alps Extended Images (entrypoint enabled, cxi hook
+    #: disabled and PMIx environment). The ``aws_ofi_nccl`` hook must not be
+    #: used with Alps Extended Images.
+    #:
+    #: :default: ``False``
+    alps_extended_image = variable(bool, value=False)
+
     @run_before('run')
     def create_env_file(self):
         mounts = ',\n'.join(f'"{m}"' for m in self.container_mounts)
@@ -60,6 +70,15 @@ class ContainerEngineMixin(rfm.RegressionTestPlugin):
         ]
         if self.container_workdir:
             toml_lines += [f'workdir = "{self.container_workdir}"']
+
+        if self.alps_extended_image:
+            toml_lines += [
+                'entrypoint = true',
+                '[env]',
+                'PMIX_MCA_psec = "native"',
+                '[annotations.com.hooks]',
+                'cxi.enabled = "false"'
+            ]
 
         for k, v in self.container_env_key_values.items():
             toml_lines.append(f'{k} = {v}')

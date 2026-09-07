@@ -1,4 +1,3 @@
-import re  # noqa: F401
 import sys
 import pathlib
 import reframe as rfm
@@ -9,76 +8,24 @@ from pytorch_test_base import PyTorchTestBase
 sys.path.append(str(pathlib.Path(__file__).parent.parent.parent / 'mixins'))
 from container_engine import ContainerEngineMixin  # noqa: E402
 
-sys.path.append(
-    str(pathlib.Path(__file__).parent.parent.parent.parent / 'utility')
-)
-from nvcr import nvidia_image_tags
-
-
-@rfm.simple_test
-class test_image_tag_retrieval(rfm.RunOnlyRegressionTest):
-    valid_systems = ['+nvgpu']
-    valid_prog_environs = ['builtin']
-    executable = 'echo'
-
-    @sanity_function
-    def assert_found_tags(self):
-        return sn.assert_found(r'pytorch tags: \S+', self.stdout)
-    
-    @run_before('run')
-    def set_container_variables(self):
-        self.executable_opts = [
-            f'pytorch tags: {",".join(nvidia_image_tags("pytorch"))}'
-        ]
-
 
 @rfm.simple_test
 class PyTorchDdpCeNv(PyTorchTestBase, ContainerEngineMixin):
     descr = ('Check the training throughput using the ContainerEngine and '
-             'NVIDIA NGC')
+             'Alps Extended Image')
     valid_systems = ['+ce +nvgpu']
     maintainers = ['ml-team']
-    aws_ofi_nccl = parameter([True])
-    curated_images = ['nvcr.io#nvidia/pytorch:25.06-py3']
-
-    # NOTE: only the "-py3" image is supported by the test
-    supported_flavors = ["-py3"] 
-
-    pytorch_tags = nvidia_image_tags('pytorch')
-    latest_tags = []
-
-    # FIXME: 25.08-py3 version and above use Cuda 13 see:
-    # https://jira.cscs.ch/browse/VCUE-1039
-
-    # for flavor in supported_flavors:
-    #     versions = []
-    #     for tag in pytorch_tags:
-    #         if re.match(rf'^\d+\.\d+{flavor}$', tag):
-    #             versions.append(tag[:-len(flavor)])
-
-    #     if versions:
-    #         latest_version = max(versions)
-    #         latest_tags += [f'{latest_version}{flavor}']
-
-    latest_images = [f'nvcr.io#nvidia/pytorch:{tag}' for tag in latest_tags]
-    image = parameter(curated_images + latest_images)
+    alps_extended_image = True
+    container_image = (
+        'jfrog.svc.cscs.ch/docker-group-csstaff/alps-images/'
+        'ngc-pytorch:26.02-py3-alps6'
+    )
     env_vars = {
         'NCCL_DEBUG': 'Info',
+        'SLURM_NETWORK': 'disable_rdzv_get',
     }
     tags = {'production', 'ce'}
 
-    @run_after('init')
-    def set_image(self):
-        self.container_image = self.image
-        if self.aws_ofi_nccl:
-            # Only cuda12 is supported at the moment
-            cuda_major = 'cuda12'
-            self.container_env_table = {
-                'annotations.com.hooks': {
-                    'aws_ofi_nccl.enabled': 'true',
-                    'aws_ofi_nccl.variant': cuda_major,
-                },
-            }
 
 @rfm.simple_test
 class PyTorchDdpCeNvlarge(PyTorchDdpCeNv):
